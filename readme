@@ -1,0 +1,41 @@
+0. prepare:
+a. mkdir vcf, and put the original vcf file in the vcf directory
+b. require fasta file from old version, check chromosome name in old fasta matching source vcf
+c. require bwa indexed new genome
+
+1.  get the 200bp context sequence for each SNP
+You will need the refernce genome fasta file of the old version.
+For maize hapmap, we have one vcf file per chromsome. Keep all VCF files from old version in a directory. It is ok to use compressed *.vcf.gz file.
+
+Usage: ./get_context_vcf.pl oldReferenceFastaFileName vcf
+
+After this step, you should see two new files in your current directory: context.txt and hapmap.fastq
+
+2. Run bwa to map the SNP flanking sequence to the new genome 
+a) bwa is installed on your computer;
+b) Prepare a bwa index of the new reference genome;
+bwa index newReferenceGenome.fa
+c) map the SNP flanking sequence to the new genome
+bwa aln -t 8 newReferenceGenome.fa hapmap.fastq |bwa samse  newReferenceGenome.fa - hapmap.fastq > hapmap.sam
+
+3. parse sam file 
+get_pos_from_sam.pl
+this script will create a file named results
+
+4. run assign_newpos2vcf.pl to create new.vcf file in the vcf directory
+assign_newpos2vcf.pl vcfDirectoryName newReferenceGenome.fa
+* this step create new vcf file with the new position, the file name is new.vcf
+
+5. cd vcf
+
+6. you will need to msort the new vcf files by new positions (https://samtools.github.io/bcftools/bcftools.html#sort), and create a sorted bcf file
+
+sort -S 2G  -k1,1V -k2,2n new.vcf > new2.vcf
+cat tmpheader.txt new2.vcf >new3.vcf
+bgzip new3.vcf
+tabix new3.vcf.gz
+bcftools view -o TUMPLANTBREEDING_Maize600k_elitelines_AGPv4.bcf -O b new3.vcf.gz
+
+
+7. you can optionally split the vcf file to one file per chromosome
+bcftools view -r chr1 -O b -o chr1.bcf
